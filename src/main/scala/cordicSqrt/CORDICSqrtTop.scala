@@ -21,6 +21,13 @@ case class CORDICSqrtOutput() extends Bundle {
   val fflags = UInt(5.W)
 }
 
+case class FloatFields() extends Bundle {
+  val mantissa = UInt(53.W)
+  val exponent = UInt(11.W)
+  val sign     = UInt(1.W)
+  val mant_rnd = UInt(1.W) // Stores mantissa(0) if it was shifted right
+}
+
 /**
   * Compute floating-point square root with CORDIC algorithm.
   * Dynamically selectable between float and double
@@ -32,7 +39,11 @@ class CORDICSqrtTop extends Module {
     val out = ValidIO(CORDICSqrtOutput())
   })
 
+  // Submodules
   val preprocessor = Module(new PreProcessor)
+
+  // Pipeline registers
+  val preproc_to_cordic = Reg(FloatFields())
 
   // Initial values
   io.out.bits.data            := 0.U
@@ -47,6 +58,11 @@ class CORDICSqrtTop extends Module {
     when (preprocessor.io.out.data.valid) {
       io.out <> preprocessor.io.out.data
       io.out.valid     := true.B
+    } .otherwise {
+      preproc_to_cordic.mantissa := preprocessor.io.out.mant
+      preproc_to_cordic.exponent := preprocessor.io.out.expo
+      preproc_to_cordic.sign     := 0.U // sign cannot be negative...
+      preproc_to_cordic.mant_rnd := preprocessor.io.out.mant_round
     }
   }
 }
