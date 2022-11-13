@@ -41,6 +41,7 @@ class CORDICSqrtTop extends Module {
 
   // Submodules
   val preprocessor = Module(new PreProcessor)
+  val cordic = Module(new CORDICSqrt)
 
   // Pipeline registers
   val preproc_to_cordic = Reg(FloatFields())
