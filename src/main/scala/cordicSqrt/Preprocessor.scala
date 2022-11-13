@@ -25,8 +25,11 @@ class PreProcessor extends Module {
 
   val bias = 1023.U
 
-  val mantissa = io.in.data(51,0)
   val exponent = io.in.data(62,52)
+  val mant_with_hidden = Cat(
+    Mux(exponent === bias, 0.U, 1.U), io.in.data(51,0)
+  )
+  val mantissa = io.in.data(51,0)
   val sign     = io.in.data(63)
   val mant_rnd = WireDefault(0.U(1.W))
   val new_expo = WireDefault(0.U(11.W))
@@ -48,8 +51,8 @@ class PreProcessor extends Module {
     // Both exponent and bias have an LSB, thus we can forget them
     // and divide by 2 by shifting right, and then just add 1
     new_expo := ((exponent + 1.U) >> 1) + (bias >> 1) + 1.U
-    new_mant := mantissa >> 1 
-    mant_rnd := mantissa(0)
+    new_mant := mant_with_hidden >> 1 
+    mant_rnd := mant_with_hidden(0)
   }
 
 
