@@ -50,9 +50,9 @@ trait CORDICMethods {
   }
 
   def generateRepeatIndices(iterations: Int): Seq[UInt] = {
-    var i = 0
-    val kList = Seq[UInt]()
-    var kTarget = 4
+    var i = 1
+    val kList = Seq[UInt](4.U)
+    var kTarget = 13
     for (i <- 1 to iterations) {
       if (i == kTarget) {
         kList :+ i.U
@@ -95,6 +95,8 @@ class CORDICSqrtTop extends Module with CORDICMethods {
   val state_r      = RegInit(State.WAIT)
   val repeat_r     = RegInit(VecInit(generateRepeatIndices(iterations)))
   val repeat_idx_r = RegInit(0.U)
+  val xn           = RegInit(0.U)
+  val yn           = RegInit(0.U)
 
   val inv_cordic_gain = calcInverseCORDICGain(iterations)
   val cordic_init = calcInitialValue()
@@ -110,6 +112,8 @@ class CORDICSqrtTop extends Module with CORDICMethods {
   out_r.valid                 := false.B
   preprocessor.io.in.datatype := io.datatype
   preprocessor.io.in.data     := 0.U
+  cordicIter.in.xn            := 0.U
+  cordicIter.in.yn            := 0.U
 
   switch (state_r) {
     is (State.WAIT) {
@@ -131,26 +135,26 @@ class CORDICSqrtTop extends Module with CORDICMethods {
       }
     }
     is (State.CALCULATE) {
-      val xn = 0.U
-      val yn = 0.U
+
       when (iter_cnt_r === 1.U) {
-        xn := in_r.bits + cordic_init
-        yn := in_r.bits - cordic_init
+        cordicIter.in.xn := in_r.bits + cordic_init
+        cordicIter.in.yn := in_r.bits - cordic_init
       } .otherwise {
-        xn := cordicIter.out.xn1
-        yn := cordicIter.out.yn1
+        cordicIter.in.xn := xn
+        cordicIter.in.yn := yn
         when (iter_cnt_r === iterations.U) {
           state_r := State.FINISH
-          iter_cnt_r := 1.U
         }
       }
-      cordicIter.in.xn := xn
-      cordicIter.in.yn := yn
+
       when (iter_cnt_r === repeat_r(repeat_idx_r)) {
         repeat_idx_r := repeat_idx_r + 1.U
       } .otherwise {
         iter_cnt_r := iter_cnt_r + 1.U
       }
+
+      xn := cordicIter.out.xn1
+      yn := cordicIter.out.yn1
     }
     is (State.FINISH) {
       out_r.bits.data   := cordicIter.out.xn1
@@ -160,13 +164,4 @@ class CORDICSqrtTop extends Module with CORDICMethods {
       iter_cnt_r        := 1.U
     }
   }
-
-  when (in_r.valid) {
-    preprocessor.io.in.data := in_r.bits
-    // If preprocessor found an easy solution
-    when (preprocessor.io.out.data.valid) {
-      out_r <> preprocessor.io.out
-    }
-  }
-
 }

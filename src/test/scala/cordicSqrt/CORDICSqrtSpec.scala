@@ -20,22 +20,25 @@ import chisel3.experimental.BundleLiterals._
 class CORDICSqrtSpec extends AnyFlatSpec with ChiselScalatestTester {
 
   it should "check special cases" in {
-    test(new CORDICSqrtTop) { dut =>
+    test(new CORDICSqrtTop).withAnnotations(Seq(WriteVcdAnnotation)) { dut =>
       val minus_zero = "h8000000000000000".U
       dut.io.in.bits  poke minus_zero
       dut.io.in.valid poke true.B
       dut.io.datatype poke SqrtDatatype.DOUBLE
-
+      dut.clock.step()
+      dut.io.in.valid poke false.B
+      while(dut.io.out.valid.peek().litToBoolean == false) dut.clock.step()
       dut.io.out.bits.data   expect minus_zero
       dut.io.out.bits.fflags expect 0.U
       dut.io.out.valid       expect true.B
-      dut.clock.step(1)
 
       val plus_inf = "h7ff0000000000000".U
       dut.io.in.bits  poke plus_inf
       dut.io.in.valid poke true.B
       dut.io.datatype poke SqrtDatatype.DOUBLE
-
+      dut.clock.step()
+      dut.io.in.valid poke false.B
+      while(dut.io.out.valid.peek().litToBoolean == false) dut.clock.step()
       dut.io.out.bits.data   expect plus_inf
       dut.io.out.bits.fflags expect 0.U
       dut.io.out.valid       expect true.B
@@ -45,6 +48,9 @@ class CORDICSqrtSpec extends AnyFlatSpec with ChiselScalatestTester {
       dut.io.in.bits  poke minus_inf
       dut.io.in.valid poke true.B
       dut.io.datatype poke SqrtDatatype.DOUBLE
+      dut.clock.step()
+      dut.io.in.valid poke false.B
+      while(dut.io.out.valid.peek().litToBoolean == false) dut.clock.step()
 
       dut.io.out.bits.data   expect minus_qNan
       dut.io.out.bits.fflags expect 16.U
@@ -54,6 +60,9 @@ class CORDICSqrtSpec extends AnyFlatSpec with ChiselScalatestTester {
       dut.io.in.bits  poke qNan_with_payload
       dut.io.in.valid poke true.B
       dut.io.datatype poke SqrtDatatype.DOUBLE
+      dut.clock.step()
+      dut.io.in.valid poke false.B
+      while(dut.io.out.valid.peek().litToBoolean == false) dut.clock.step()
 
       dut.io.out.bits.data   expect qNan_with_payload
       dut.io.out.bits.fflags expect 0.U
