@@ -33,20 +33,29 @@ class CORDICSqrtTop extends Module {
   })
 
   val preprocessor = Module(new PreProcessor)
+  val cordic_iter  = Module(new CORDICSqrt(width=100, iterations=100))
+
+  // Registers
+  val in_r    = RegNext(io.in)
+  val out_r   = Reg(CORDICSqrtOutput())
+  val valid_r = RegInit(false.B)
+
+  // Assignments
+  io.out.bits  <> out_r
+  io.out.valid := valid_r
 
   // Initial values
-  io.out.bits.data            := 0.U
-  io.out.bits.fflags          := 0.U
-  io.out.valid                := false.B
+  out_r.data                  := 0.U
+  out_r.fflags                := 0.U
   preprocessor.io.in.datatype := io.datatype
   preprocessor.io.in.data     := 0.U
 
-  when (io.in.valid) {
-    preprocessor.io.in.data := io.in.bits
+  when (in_r.valid) {
+    preprocessor.io.in.data := in_r.bits
     // If preprocessor found an easy solution
     when (preprocessor.io.out.data.valid) {
-      io.out <> preprocessor.io.out.data
-      io.out.valid     := true.B
+      out_r <> preprocessor.io.out.data
+      valid_r := true.B
     }
   }
 }
