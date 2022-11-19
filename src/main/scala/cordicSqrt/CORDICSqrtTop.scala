@@ -89,25 +89,25 @@ class CORDICSqrtTop extends Module with CORDICMethods {
   val cordicIter  = Module(new CORDICSqrt(width=100, iterations=iterations))
 
   // Registers
-  val in_r       = Reg(Output(chiselTypeOf(io.in)))
-  val out_r      = Reg(CORDICSqrtOutput())
-  val valid_r    = RegInit(false.B)
-  val iter_cnt_r = RegInit(1.U)
-  val state_r    = RegInit(State.WAIT)
-  val repeat_r   = RegInit(VecInit(generateRepeatIndices(iterations)))
+  val in_r         = Reg(Output(chiselTypeOf(io.in)))
+  val out_r        = Reg(Output(chiselTypeOf(io.out)))
+  val iter_cnt_r   = RegInit(1.U)
+  val state_r      = RegInit(State.WAIT)
+  val repeat_r     = RegInit(VecInit(generateRepeatIndices(iterations)))
+  val repeat_idx_r = RegInit(0.U)
 
   val inv_cordic_gain = calcInverseCORDICGain(iterations)
   val cordic_init = calcInitialValue()
 
   // Assignments
 
-  io.out.bits        <> out_r
-  io.out.valid       := valid_r
+  io.out        <> out_r
   cordicIter.in.iter := iter_cnt_r
 
   // Initial values
-  out_r.data                  := 0.U
-  out_r.fflags                := 0.U
+  out_r.bits.data             := 0.U
+  out_r.bits.fflags           := 0.U
+  out_r.valid                 := false.B
   preprocessor.io.in.datatype := io.datatype
   preprocessor.io.in.data     := 0.U
 
@@ -124,7 +124,6 @@ class CORDICSqrtTop extends Module with CORDICMethods {
 
       when (preprocessor.io.out.data.valid) {
         out_r   <> preprocessor.io.out.data
-        valid_r := true.B
         state_r := State.WAIT
       } .otherwise {
         state_r    := State.CALCULATE
@@ -147,15 +146,18 @@ class CORDICSqrtTop extends Module with CORDICMethods {
       }
       cordicIter.in.xn := xn
       cordicIter.in.yn := yn
-      //when (iter_cnt_r === repeat_r) {
-      //  repeat_r
-      //}
+      when (iter_cnt_r === repeat_r(repeat_idx_r)) {
+        repeat_idx_r := repeat_idx_r + 1.U
+      } .otherwise {
+        iter_cnt_r := iter_cnt_r + 1.U
+      }
     }
     is (State.FINISH) {
-      out_r.data := cordicIter.out.xn1
-      out_r.fflags := 0.U // Hmm
-      valid_r := true.B
-      state_r := State.WAIT
+      out_r.bits.data   := cordicIter.out.xn1
+      out_r.bits.fflags := 0.U // Hmm
+      out_r.valid       := true.B
+      state_r           := State.WAIT
+      iter_cnt_r        := 1.U
     }
   }
 
@@ -163,8 +165,7 @@ class CORDICSqrtTop extends Module with CORDICMethods {
     preprocessor.io.in.data := in_r.bits
     // If preprocessor found an easy solution
     when (preprocessor.io.out.data.valid) {
-      out_r <> preprocessor.io.out.data
-      valid_r := true.B
+      out_r <> preprocessor.io.out
     }
   }
 
