@@ -21,17 +21,41 @@ case class CORDICSqrtOutput() extends Bundle {
   val fflags = UInt(5.W)
 }
 
+case class FloatFields() extends Bundle {
+  val mantissa = UInt(53.W)
+  val exponent = UInt(11.W)
+  val sign     = UInt(1.W)
+  val mant_rnd = UInt(1.W) // Stores mantissa(0) if it was shifted right
+}
+
+
+trait CORDICMethods {
+  def calcInverseCORDICGain(iterations: Int) : Double = {
+    var An = 1.0.toDouble
+    var k = 4
+    for (i <- 1 to iterations) {
+      An = An * sqrt(1 - pow(2,-2*i))
+      if (i == k) {
+        An *= sqrt(1 - pow(2,-2*i))
+        k = 3*k + 1
+      }
+    }
+    1/An
+  }
+}
+
 /**
   * Compute floating-point square root with CORDIC algorithm.
   * Dynamically selectable between float and double
   */
-class CORDICSqrtTop extends Module {
+class CORDICSqrtTop extends Module with CORDICMethods {
   val io = IO(new Bundle {
     val in = Flipped(ValidIO(UInt(64.W)))
     val datatype = Input(SqrtDatatype())
     val out = ValidIO(CORDICSqrtOutput())
   })
 
+  // Submodules
   val preprocessor = Module(new PreProcessor)
   val cordic_iter  = Module(new CORDICSqrt(width=100, iterations=100))
 
@@ -39,6 +63,8 @@ class CORDICSqrtTop extends Module {
   val in_r    = RegNext(io.in)
   val out_r   = Reg(CORDICSqrtOutput())
   val valid_r = RegInit(false.B)
+
+  val inv_cordic_gain = calcInverseCORDICGain(iterations)
 
   // Assignments
   io.out.bits  <> out_r
