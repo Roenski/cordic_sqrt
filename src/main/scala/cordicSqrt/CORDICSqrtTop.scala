@@ -48,6 +48,19 @@ trait CORDICMethods {
   def calcInitialValue(): UInt = {
      Cat(0.U, 0.U, 1.U, Fill(50, 0.U))
   }
+
+  def generateRepeatIndices(iterations: Int): Seq[UInt] = {
+    var i = 0
+    val kList = Seq[UInt]()
+    var kTarget = 4
+    for (i <- 1 to iterations) {
+      if (i == kTarget) {
+        kList :+ i.U
+        kTarget = 3*i + 1
+      }
+    }
+    kList
+  }
 }
 
 object CORDICSqrtTop {
@@ -81,6 +94,7 @@ class CORDICSqrtTop extends Module with CORDICMethods {
   val valid_r    = RegInit(false.B)
   val iter_cnt_r = RegInit(1.U)
   val state_r    = RegInit(State.WAIT)
+  val repeat_r   = RegInit(VecInit(generateRepeatIndices(iterations)))
 
   val inv_cordic_gain = calcInverseCORDICGain(iterations)
   val cordic_init = calcInitialValue()
@@ -133,6 +147,9 @@ class CORDICSqrtTop extends Module with CORDICMethods {
       }
       cordicIter.in.xn := xn
       cordicIter.in.yn := yn
+      //when (iter_cnt_r === repeat_r) {
+      //  repeat_r
+      //}
     }
     is (State.FINISH) {
       out_r.data := cordicIter.out.xn1
