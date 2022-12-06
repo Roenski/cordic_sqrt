@@ -89,23 +89,24 @@ class CORDICSqrtTop extends Module with CORDICMethods {
   val cordicIter   = Module(new CORDICSqrt(width = 100, iterations = iterations))
 
   // Registers
-  val in      = Reg(Output(chiselTypeOf(io.in)))
-  val out     = Reg(Output(chiselTypeOf(io.out)))
-  val incrCnt = WireDefault(false.B)
-  // val iterCnt      = Counter()
-  val state     = RegInit(State.WAIT)
-  val repeat    = RegInit(VecInit(generateRepeatIndices(iterations)))
-  val repeatIdx = RegInit(0.U)
-  val xn        = RegInit(0.U)
-  val yn        = RegInit(0.U)
+  val in               = Reg(Output(chiselTypeOf(io.in)))
+  val out              = Reg(Output(chiselTypeOf(io.out)))
+  val incrementCounter = WireDefault(false.B)
+  val state            = RegInit(State.WAIT)
+  val repeat           = RegInit(VecInit(generateRepeatIndices(iterations)))
+  val repeatIdx        = RegInit(0.U)
+  val xn               = RegInit(0.U)
+  val yn               = RegInit(0.U)
+
+  // Iterations counter
+  val (iterCounterValue, iterCounterWrap) = Counter(incrementCounter, iterations)
 
   val invCordicGain = calcInverseCORDICGain(iterations)
   val cordicInit    = calcInitialValue()
 
   // Assignments
-
   io.out <> out
-  cordicIter.in.iter := iterCnt
+  cordicIter.in.iter := iterCounterValue
 
   // Initial values
   out.bits.data               := 0.U
@@ -131,38 +132,38 @@ class CORDICSqrtTop extends Module with CORDICMethods {
         out <> preprocessor.io.out.data
         state := State.WAIT
       }.otherwise {
-        state   := State.CALCULATE
-        iterCnt := 1.U
+        state            := State.CALCULATE
+        iterCounterValue := 1.U
       }
     }
     is(State.CALCULATE) {
 
-      when(iterCnt === 1.U) {
+      when(iterCounterValue === 1.U) {
         cordicIter.in.xn := in.bits + cordicInit
         cordicIter.in.yn := in.bits - cordicInit
       }.otherwise {
         cordicIter.in.xn := xn
         cordicIter.in.yn := yn
-        when(iterCnt === iterations.U) {
+        when(iterCounterValue === iterations.U) {
           state := State.FINISH
         }
       }
 
-      when(iterCnt === repeat(repeatIdx)) {
+      when(iterCounterValue === repeat(repeatIdx)) {
         repeatIdx := repeatIdx + 1.U
       }.otherwise {
-        iterCnt := iterCnt + 1.U
+        iterCounterValue := iterCounterValue + 1.U
       }
 
       xn := cordicIter.out.xn1
       yn := cordicIter.out.yn1
     }
     is(State.FINISH) {
-      out.bits.data   := cordicIter.out.xn1
-      out.bits.fflags := 0.U // Hmm
-      out.valid       := true.B
-      state           := State.WAIT
-      iterCnt         := 1.U
+      out.bits.data    := cordicIter.out.xn1
+      out.bits.fflags  := 0.U // Hmm
+      out.valid        := true.B
+      state            := State.WAIT
+      iterCounterValue := 1.U
     }
   }
 
