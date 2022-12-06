@@ -49,12 +49,11 @@ trait CORDICMethods {
   }
 
   def generateRepeatIndices(iterations: Int): Seq[UInt] = {
-    var i       = 1
-    val kList   = Seq[UInt](4.U)
+    var kList   = Seq[UInt](4.U)
     var kTarget = 13
     for (i <- 1 to iterations) {
       if (i == kTarget) {
-        kList :+ i.U
+        kList = kList :+ i.U
         kTarget = 3 * i + 1
       }
     }
