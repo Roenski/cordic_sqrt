@@ -75,8 +75,11 @@ class CORDICSqrtSpec extends AnyFlatSpec with ChiselScalatestTester {
       val two = "h4000000000000000".U
       dut.io.in.bits  poke two
       dut.io.in.valid poke true.B
+      dut.clock.step(1)
+      dut.io.in.valid poke false.B
       dut.io.datatype poke SqrtDatatype.DOUBLE
-      dut.clock.step(105)
+      dut.clock.step(130)
+      //dut.io.out.bits.data   expect "h3FF6A09E667F3BCD".U
     }
   }
 }

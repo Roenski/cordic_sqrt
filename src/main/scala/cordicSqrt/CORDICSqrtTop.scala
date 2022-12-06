@@ -70,7 +70,8 @@ object CORDICSqrtTop {
 
 }
 
-/** Compute floating-point square root with CORDIC algorithm. Dynamically selectable between float and double
+/** Compute floating-point square root with CORDIC algorithm. Dynamically selectable
+  * between float and double
   */
 class CORDICSqrtTop extends Module with CORDICMethods {
   import CORDICSqrtTop.State
@@ -93,12 +94,12 @@ class CORDICSqrtTop extends Module with CORDICMethods {
   val incrementCounter = WireDefault(false.B)
   val state            = RegInit(State.WAIT)
   val repeat           = RegInit(VecInit(generateRepeatIndices(iterations)))
-  val repeatIdx        = RegInit(0.U)
+  val repeatIndex      = RegInit(0.U)
   val xn               = RegInit(0.U)
   val yn               = RegInit(0.U)
 
   // Iterations counter
-  val (iterCounterValue, iterCounterWrap) = Counter(incrementCounter, iterations)
+  val (iterCounterValue, iterCounterWrap) = Counter(incrementCounter, iterations + 1)
 
   val invCordicGain = calcInverseCORDICGain(iterations)
   val cordicInit    = calcInitialValue()
@@ -148,8 +149,8 @@ class CORDICSqrtTop extends Module with CORDICMethods {
         }
       }
 
-      when(iterCounterValue === repeat(repeatIdx)) {
-        repeatIdx := repeatIdx + 1.U
+      when(iterCounterValue === repeat(repeatIndex)) {
+        repeatIndex := repeatIndex + 1.U
       }.otherwise {
         incrementCounter := true.B
       }

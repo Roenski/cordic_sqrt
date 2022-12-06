@@ -4,7 +4,7 @@ import chisel3._
 import chisel3.util._
 import chisel3.experimental._
 
-/** Calculates squareroot exponent and readjusts mantissa and handles special cases.
+/** Calculates squareroot exponent, adjusts mantissa and handles special cases.
   */
 class PreProcessor extends Module {
 
@@ -28,7 +28,9 @@ class PreProcessor extends Module {
 
   val exponent = io.in.data(62, 52)
 
-  val mantWithHidden = Cat(
+  // If exponent === bias, it is a subnormal value
+  // Then, hidden bit is 0
+  val mantissaWithHiddenBit = Cat(
     Mux(exponent === bias, 0.U, 1.U),
     io.in.data(51, 0)
   )
@@ -49,14 +51,17 @@ class PreProcessor extends Module {
     newExponent := exponent
   }.elsewhen(exponent(0)) {
     // Exponent is odd (or even, after subtracting bias)
+    // Exponent divided by 2, remainder 0
     newExponent := (exponent >> 1) + (bias >> 1) + 1.U
   }.otherwise {
     // Exponent is even (or odd, after subtracting bias)
     // Both exponent and bias have an LSB, thus we can forget them
     // and divide by 2 by shifting right, and then just add 1
+    // Exponent divided by 2, remainder 1
+    // Mantissa is divided by 2, exponent rounded upwards
     newExponent      := ((exponent + 1.U) >> 1) + (bias >> 1) + 1.U
-    newMantissa      := mantWithHidden >> 2
-    mantissaRoundBit := mantWithHidden(0)
+    newMantissa      := mantissaWithHiddenBit >> 1
+    mantissaRoundBit := mantissaWithHiddenBit(0)
   }
 
   // Special cases
