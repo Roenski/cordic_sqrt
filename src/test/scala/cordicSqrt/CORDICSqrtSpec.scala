@@ -69,4 +69,14 @@ class CORDICSqrtSpec extends AnyFlatSpec with ChiselScalatestTester {
       dut.io.out.valid       expect true.B
     }
   }
+
+  it should "calculate random values" in {
+    test(new CORDICSqrtTop).withAnnotations(Seq(WriteVcdAnnotation)) { dut =>
+      val two = "h4000000000000000".U
+      dut.io.in.bits  poke two
+      dut.io.in.valid poke true.B
+      dut.io.datatype poke SqrtDatatype.DOUBLE
+      dut.clock.step(105)
+    }
+  }
 }
