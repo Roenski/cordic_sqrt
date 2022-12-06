@@ -132,7 +132,7 @@ class CORDICSqrtTop extends Module with CORDICMethods {
         state := State.WAIT
       }.otherwise {
         state            := State.CALCULATE
-        iterCounterValue := 1.U
+        incrementCounter := true.B
       }
     }
     is(State.CALCULATE) {
@@ -151,7 +151,7 @@ class CORDICSqrtTop extends Module with CORDICMethods {
       when(iterCounterValue === repeat(repeatIdx)) {
         repeatIdx := repeatIdx + 1.U
       }.otherwise {
-        iterCounterValue := iterCounterValue + 1.U
+        incrementCounter := true.B
       }
 
       xn := cordicIter.out.xn1
