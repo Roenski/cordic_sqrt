@@ -11,7 +11,7 @@ class CORDICSqrt(width: Int, iterations: Int) extends Module {
   val in = IO(Input(new Bundle {
     val xn   = UInt(width.W)
     val yn   = UInt(width.W)
-    val iter = UInt((math.log(iterations) / math.log(2)).toInt.W)
+    val iter = UInt(log2Up(iterations).W)
   }))
 
   val out = IO(Output(new Bundle {

@@ -82,19 +82,23 @@ class CORDICSqrtTop extends Module with CORDICMethods {
     val out      = ValidIO(CORDICSqrtOutput())
   })
 
-  val iterations = 100
+  val iterations      = 100
+  val calculationBits = 100
 
   // Submodules
   val preprocessor = Module(new PreProcessor)
-  val cordicIter   = Module(new CORDICSqrt(width = 100, iterations = iterations))
+
+  val cordicIter =
+    Module(new CORDICSqrt(width = calculationBits, iterations = iterations))
 
   // Registers
   val in               = Reg(Output(chiselTypeOf(io.in)))
   val out              = Reg(Output(chiselTypeOf(io.out)))
+  val cordicIn         = RegInit(0.U(calculationBits.W))
   val incrementCounter = WireDefault(false.B)
   val state            = RegInit(State.WAIT)
   val repeat           = RegInit(VecInit(generateRepeatIndices(iterations)))
-  val repeatIndex      = RegInit(0.U)
+  val repeatIndex      = RegInit(0.U(4.W))
   val xn               = RegInit(0.U)
   val yn               = RegInit(0.U)
 
@@ -132,6 +136,7 @@ class CORDICSqrtTop extends Module with CORDICMethods {
         out <> preprocessor.io.out.data
         state := State.WAIT
       }.otherwise {
+        cordicIn         := preprocessor.io.out.mantissa
         state            := State.CALCULATE
         incrementCounter := true.B
       }
@@ -139,8 +144,8 @@ class CORDICSqrtTop extends Module with CORDICMethods {
     is(State.CALCULATE) {
 
       when(iterCounterValue === 1.U) {
-        cordicIter.in.xn := in.bits + cordicInit
-        cordicIter.in.yn := in.bits - cordicInit
+        cordicIter.in.xn := (cordicIn + cordicInit) << (calculationBits - 64)
+        cordicIter.in.yn := (cordicIn - cordicInit) << (calculationBits - 64)
       }.otherwise {
         cordicIter.in.xn := xn
         cordicIter.in.yn := yn
