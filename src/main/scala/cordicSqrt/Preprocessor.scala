@@ -16,52 +16,47 @@ class PreProcessor extends Module {
     })
 
     val out = Output(new Bundle {
-      val mantissa         = UInt(52.W)
-      val mantissaRoundBit = UInt(1.W)
-      val expo             = UInt(11.W)
-      val data             = ValidIO(CORDICSqrtOutput())
+      val mantissa = UInt(54.W)
+      val exponent = UInt(11.W)
+      val data     = ValidIO(CORDICSqrtOutput())
     })
 
   })
 
   val bias = 1023.U
 
-  val exponent = io.in.data(62, 52)
+  val mantissa    = io.in.data(51, 0)
+  val exponent    = io.in.data(62, 52)
+  val sign        = io.in.data(63)
+  val hiddenBit   = (exponent =/= 0.U)
+  val newExponent = WireDefault(0.U(11.W))
+  // New mantissa will include:
+  // hidden bit - 1 bit
+  // old mantissa - 52 bits
+  // round bit caused by bit shift - 1 bit
+  val newMantissa = WireDefault(0.U(54.W))
 
-  // If exponent === bias, it is a subnormal value
-  // Then, hidden bit is 0
-  val mantissaWithHiddenBit = Cat(
-    Mux(exponent === bias, 0.U, 1.U),
-    io.in.data(51, 0)
-  )
-
-  val mantissa         = io.in.data(51, 0)
-  val sign             = io.in.data(63)
-  val mantissaRoundBit = WireDefault(0.U(1.W))
-  val newExponent      = WireDefault(0.U(11.W))
-  val newMantissa      = WireDefault(1.U(52.W))
-
-  io.out.mantissa         := newMantissa
-  io.out.expo             := newExponent
-  io.out.mantissaRoundBit := mantissaRoundBit
+  io.out.mantissa := newMantissa
+  io.out.exponent := newExponent
 
   // Calculate new exponent
   // and adjust mantissa when necessary
   when(exponent === bias) {
     newExponent := exponent
+    newMantissa := Cat(hiddenBit, mantissa)
   }.elsewhen(exponent(0)) {
     // Exponent is odd (or even, after subtracting bias)
     // Exponent divided by 2, remainder 0
     newExponent := (exponent >> 1) + (bias >> 1) + 1.U
+    newMantissa := Cat(hiddenBit, mantissa)
   }.otherwise {
     // Exponent is even (or odd, after subtracting bias)
     // Both exponent and bias have an LSB, thus we can forget them
     // and divide by 2 by shifting right, and then just add 1
     // Exponent divided by 2, remainder 1
     // Mantissa is divided by 2, exponent rounded upwards
-    newExponent      := ((exponent + 1.U) >> 1) + (bias >> 1) + 1.U
-    newMantissa      := mantissaWithHiddenBit >> 1
-    mantissaRoundBit := mantissaWithHiddenBit(0)
+    newExponent := ((exponent + 1.U) >> 1) + (bias >> 1) + 1.U
+    newMantissa := Cat(0.U, hiddenBit, mantissa)
   }
 
   // Special cases

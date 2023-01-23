@@ -136,7 +136,8 @@ class CORDICSqrtTop extends Module with CORDICMethods {
         out <> preprocessor.io.out.data
         state := State.WAIT
       }.otherwise {
-        cordicIn         := preprocessor.io.out.mantissa
+        cordicIn         := Cat(preprocessor.io.out.mantissa, 
+                                0.U((calculationBits-54).W))
         state            := State.CALCULATE
         incrementCounter := true.B
       }
@@ -164,7 +165,7 @@ class CORDICSqrtTop extends Module with CORDICMethods {
       yn := cordicIter.out.yn1
     }
     is(State.FINISH) {
-      out.bits.data    := cordicIter.out.xn1
+      out.bits.data    := xn
       out.bits.fflags  := 0.U // Hmm
       out.valid        := true.B
       state            := State.WAIT
