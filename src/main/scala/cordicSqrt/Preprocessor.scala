@@ -43,12 +43,12 @@ class PreProcessor extends Module {
   // and adjust mantissa when necessary
   when(exponent === bias) {
     newExponent := exponent
-    newMantissa := Cat(hiddenBit, mantissa)
+    newMantissa := Cat(hiddenBit, mantissa, 0.U)
   }.elsewhen(exponent(0)) {
     // Exponent is odd (or even, after subtracting bias)
     // Exponent divided by 2, remainder 0
     newExponent := (exponent >> 1) + (bias >> 1) + 1.U
-    newMantissa := Cat(hiddenBit, mantissa)
+    newMantissa := Cat(hiddenBit, mantissa, 0.U)
   }.otherwise {
     // Exponent is even (or odd, after subtracting bias)
     // Both exponent and bias have an LSB, thus we can forget them

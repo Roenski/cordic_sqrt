@@ -72,8 +72,9 @@ class CORDICSqrtSpec extends AnyFlatSpec with ChiselScalatestTester {
 
   it should "calculate random values" in {
     test(new CORDICSqrtTop).withAnnotations(Seq(WriteVcdAnnotation)) { dut =>
+      val one = "h3FF0000000000000".U
       val two = "h4000000000000000".U
-      dut.io.in.bits  poke two
+      dut.io.in.bits  poke one
       dut.io.in.valid poke true.B
       dut.clock.step(1)
       dut.io.in.valid poke false.B

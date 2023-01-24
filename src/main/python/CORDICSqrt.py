@@ -26,13 +26,13 @@ def cordic_sqrt_hwish(mantissa, exponent):
             new_exponent = exponent_unbiased/2
             mantissa_start = mantissa
 
-    mantissa_sqrt, _, _ = cordic_sqrt_ideal(mantissa_start)
+    mantissa_sqrt, _, An = cordic_sqrt_ideal(mantissa_start)
 
     if mantissa_sqrt < 1:
         new_exponent -= 1
         mantissa_sqrt *= 2
 
-    return (mantissa_sqrt, new_exponent+bias)
+    return (mantissa_sqrt, new_exponent+bias, 1/An)
 
 
 
