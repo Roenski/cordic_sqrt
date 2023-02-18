@@ -121,8 +121,8 @@ class CORDICSqrtTop(val datatype: SqrtDatatype = SqrtDatatype.DOUBLE)
   val state       = RegInit(State.WAIT)
   val repeat      = RegInit(VecInit(generateRepeatIndices(iterations)))
   val repeatIndex = RegInit(0.U(4.W))
-  val xn          = RegInit(0.U)
-  val yn          = RegInit(0.U)
+  val xn          = RegInit(0.S)
+  val yn          = RegInit(0.S)
 
   // Wires
   val incrementCounter = WireDefault(false.B)
@@ -150,8 +150,8 @@ class CORDICSqrtTop(val datatype: SqrtDatatype = SqrtDatatype.DOUBLE)
   out.valid                   := false.B
   // preprocessor.io.in.datatype := 0.U
   preprocessor.io.in.data     := 0.U
-  cordicIter.in.xn            := 0.U
-  cordicIter.in.yn            := 0.U
+  cordicIter.in.xn            := 0.S
+  cordicIter.in.yn            := 0.S
 
   switch(state) {
     is(State.WAIT) {
@@ -170,26 +170,32 @@ class CORDICSqrtTop(val datatype: SqrtDatatype = SqrtDatatype.DOUBLE)
       }.otherwise {
         cordicIn         := preprocessor.io.out.mantissa
         state            := State.CALCULATE
-        incrementCounter := true.B
       }
     }
     is(State.CALCULATE) {
 
-      when(iterCounterValue === 1.U) {
+      when(iterCounterValue === 0.U) {
         // TODO: what if start value is 1.99? 1.99+0.25 will overflow
-        cordicIter.in.xn := (cordicIn + cordicInit) << (calculationBits - datatypeMux(
+        // TODO: share adder for initial value and cordic?
+        val xnInit = Cat(0.U, cordicIn + cordicInit)
+        xn := (xnInit << (calculationBits - datatypeMux(
           datatype,
           26,
           55
-        ))
-        cordicIter.in.yn := (cordicIn - cordicInit) << (calculationBits - datatypeMux(
+        ))).asSInt
+        val ynInit = Cat(0.U, cordicIn - cordicInit)
+        yn := (ynInit << (calculationBits - datatypeMux(
           datatype,
           26,
           55
-        ))
+        ))).asSInt
       }.otherwise {
+
         cordicIter.in.xn := xn
         cordicIter.in.yn := yn
+        xn := cordicIter.out.xn1
+        yn := cordicIter.out.yn1
+
         when(iterCounterValue === iterations.U) {
           state := State.FINISH
         }
@@ -201,8 +207,6 @@ class CORDICSqrtTop(val datatype: SqrtDatatype = SqrtDatatype.DOUBLE)
         incrementCounter := true.B
       }
 
-      xn := cordicIter.out.xn1
-      yn := cordicIter.out.yn1
     }
     is(State.FINISH) {
       val tempResult = xn * invCordicGain
