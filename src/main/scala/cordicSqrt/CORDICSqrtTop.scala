@@ -4,10 +4,18 @@ import chisel3._
 import chisel3.util._
 import chisel3.experimental._
 import scala.math.{pow, sqrt}
+import dataclass.data
 
-object SqrtDatatype extends ChiselEnum {
-  val FLOAT, DOUBLE = Value
+// object SqrtDatatype extends ChiselEnum {
+//   val FLOAT, DOUBLE = Value
+// }
+
+object SqrtDatatype extends Enumeration{
+  type SqrtDatatype = Value
+  val FLOAT = Value(0)
+  val DOUBLE = Value(1)
 }
+import SqrtDatatype._
 
 object FaultFlag extends ChiselEnum {
   val inexact   = Value(0.U)
@@ -17,16 +25,19 @@ object FaultFlag extends ChiselEnum {
   val invalid   = Value(4.U)
 }
 
-case class CORDICSqrtOutput() extends Bundle {
-  val data   = UInt(64.W)
+case class CORDICSqrtOutput(datatype: SqrtDatatype = SqrtDatatype.DOUBLE)
+    extends Bundle with datatypeMux {
+  val data   = UInt(datatypeMux(datatype, 32, 64).W)
   val fflags = UInt(5.W)
 }
 
-case class FloatFields() extends Bundle {
-  val mantissa = UInt(53.W)
-  val exponent = UInt(11.W)
-  val sign     = UInt(1.W)
-  val mantRnd  = UInt(1.W) // Stores mantissa(0) if it was shifted right
+case class FloatConsts(val datatype: SqrtDatatype = SqrtDatatype.DOUBLE)
+    extends datatypeMux {
+  // Doesn't include hidden bit
+  val dataLength     = datatypeMux(datatype, 32, 64)
+  val mantissaLength = datatypeMux(datatype, 23, 52)
+  val exponentLength = datatypeMux(datatype, 8, 11)
+  val bias           = datatypeMux(datatype, 127, 1023)
 }
 
 trait CORDICMethods {
@@ -69,37 +80,52 @@ object CORDICSqrtTop {
 
 }
 
+trait datatypeMux {
+
+  def datatypeMux[T](datatype: SqrtDatatype, floatReturn: T, doubleReturn: T) = {
+    if (datatype == SqrtDatatype.FLOAT) {
+      floatReturn
+    } else {
+      doubleReturn
+    }
+  }
+
+}
+
 /** Compute floating-point square root with CORDIC algorithm. Dynamically selectable
   * between float and double
   */
-class CORDICSqrtTop extends Module with CORDICMethods {
+class CORDICSqrtTop(val datatype: SqrtDatatype = SqrtDatatype.DOUBLE)
+    extends Module with CORDICMethods with datatypeMux {
   import CORDICSqrtTop.State
 
   val io = IO(new Bundle {
-    val in       = Flipped(ValidIO(UInt(64.W)))
-    val datatype = Input(SqrtDatatype())
-    val out      = ValidIO(CORDICSqrtOutput())
+    val in       = Flipped(ValidIO(UInt(datatypeMux(datatype, 32, 64).W)))
+    // val datatype = Input(SqrtDatatype())
+    val out      = ValidIO(CORDICSqrtOutput(datatype))
   })
 
-  val iterations      = 100
-  val calculationBits = 100
+  val iterations      = datatypeMux(datatype, 50, 100)
+  val calculationBits = datatypeMux(datatype, 50, 100)
 
   // Submodules
-  val preprocessor = Module(new PreProcessor)
+  val preprocessor = Module(new PreProcessor(datatype))
 
   val cordicIter =
     Module(new CORDICSqrt(width = calculationBits, iterations = iterations))
 
   // Registers
-  val in               = Reg(Output(chiselTypeOf(io.in)))
-  val out              = Reg(Output(chiselTypeOf(io.out)))
-  val cordicIn         = RegInit(0.U(54.W))
+  val in          = Reg(Output(chiselTypeOf(io.in)))
+  val out         = Reg(Output(chiselTypeOf(io.out)))
+  val cordicIn    = datatypeMux(datatype, RegInit(0.U(25.W)), RegInit(0.U(54.W)))
+  val state       = RegInit(State.WAIT)
+  val repeat      = RegInit(VecInit(generateRepeatIndices(iterations)))
+  val repeatIndex = RegInit(0.U(4.W))
+  val xn          = RegInit(0.U)
+  val yn          = RegInit(0.U)
+
+  // Wires
   val incrementCounter = WireDefault(false.B)
-  val state            = RegInit(State.WAIT)
-  val repeat           = RegInit(VecInit(generateRepeatIndices(iterations)))
-  val repeatIndex      = RegInit(0.U(4.W))
-  val xn               = RegInit(0.U)
-  val yn               = RegInit(0.U)
 
   // Iterations counter
   val (iterCounterValue, iterCounterWrap) = Counter(incrementCounter, iterations + 1)
@@ -109,7 +135,10 @@ class CORDICSqrtTop extends Module with CORDICMethods {
     calculationBits
   )).round).U)
 
-  val cordicInit = WireDefault((cordicInitialValue / 2 * scala.math.pow(2, 54)).round.U)
+  val cordicInit = WireDefault((cordicInitialValue / 2 * scala.math.pow(
+    2,
+    datatypeMux(datatype, 25, 54)
+  )).round.U)
 
   // Assignments
   io.out <> out
@@ -119,7 +148,7 @@ class CORDICSqrtTop extends Module with CORDICMethods {
   out.bits.data               := 0.U
   out.bits.fflags             := 0.U
   out.valid                   := false.B
-  preprocessor.io.in.datatype := io.datatype
+  // preprocessor.io.in.datatype := 0.U
   preprocessor.io.in.data     := 0.U
   cordicIter.in.xn            := 0.U
   cordicIter.in.yn            := 0.U
@@ -148,8 +177,16 @@ class CORDICSqrtTop extends Module with CORDICMethods {
 
       when(iterCounterValue === 1.U) {
         // TODO: what if start value is 1.99? 1.99+0.25 will overflow
-        cordicIter.in.xn := (cordicIn + cordicInit) << (calculationBits - 54)
-        cordicIter.in.yn := (cordicIn - cordicInit) << (calculationBits - 54)
+        cordicIter.in.xn := (cordicIn + cordicInit) << (calculationBits - datatypeMux(
+          datatype,
+          25,
+          54
+        ))
+        cordicIter.in.yn := (cordicIn - cordicInit) << (calculationBits - datatypeMux(
+          datatype,
+          25,
+          54
+        ))
       }.otherwise {
         cordicIter.in.xn := xn
         cordicIter.in.yn := yn
@@ -168,9 +205,13 @@ class CORDICSqrtTop extends Module with CORDICMethods {
       yn := cordicIter.out.yn1
     }
     is(State.FINISH) {
-      val tempResult     = xn * invCordicGain
-      val resultMantissa = tempResult(calculationBits, calculationBits - 52)
-      out.bits.data    := tempResult(calculationBits, calculationBits - 64)
+      val tempResult = xn * invCordicGain
+      val resultMantissa =
+        tempResult(calculationBits, calculationBits - datatypeMux(datatype, 23, 52))
+      out.bits.data := tempResult(
+        calculationBits,
+        calculationBits - datatypeMux(datatype, 32, 64)
+      )
       out.bits.fflags  := 0.U // Hmm
       out.valid        := true.B
       state            := State.WAIT

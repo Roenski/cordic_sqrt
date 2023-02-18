@@ -24,7 +24,7 @@ class CORDICSqrtSpec extends AnyFlatSpec with ChiselScalatestTester {
       val minus_zero = "h8000000000000000".U
       dut.io.in.bits  poke minus_zero
       dut.io.in.valid poke true.B
-      dut.io.datatype poke SqrtDatatype.DOUBLE
+      // dut.io.datatype poke SqrtDatatype.DOUBLE
       dut.clock.step()
       dut.io.in.valid poke false.B
       while(dut.io.out.valid.peek().litToBoolean == false) dut.clock.step()
@@ -35,7 +35,6 @@ class CORDICSqrtSpec extends AnyFlatSpec with ChiselScalatestTester {
       val plus_inf = "h7ff0000000000000".U
       dut.io.in.bits  poke plus_inf
       dut.io.in.valid poke true.B
-      dut.io.datatype poke SqrtDatatype.DOUBLE
       dut.clock.step()
       dut.io.in.valid poke false.B
       while(dut.io.out.valid.peek().litToBoolean == false) dut.clock.step()
@@ -47,7 +46,6 @@ class CORDICSqrtSpec extends AnyFlatSpec with ChiselScalatestTester {
       val minus_qNan = "hfff8000000000000".U
       dut.io.in.bits  poke minus_inf
       dut.io.in.valid poke true.B
-      dut.io.datatype poke SqrtDatatype.DOUBLE
       dut.clock.step()
       dut.io.in.valid poke false.B
       while(dut.io.out.valid.peek().litToBoolean == false) dut.clock.step()
@@ -59,7 +57,6 @@ class CORDICSqrtSpec extends AnyFlatSpec with ChiselScalatestTester {
       val qNan_with_payload = "h7ff8000000fafafa".U
       dut.io.in.bits  poke qNan_with_payload
       dut.io.in.valid poke true.B
-      dut.io.datatype poke SqrtDatatype.DOUBLE
       dut.clock.step()
       dut.io.in.valid poke false.B
       while(dut.io.out.valid.peek().litToBoolean == false) dut.clock.step()
@@ -71,14 +68,14 @@ class CORDICSqrtSpec extends AnyFlatSpec with ChiselScalatestTester {
   }
 
   it should "calculate random values" in {
-    test(new CORDICSqrtTop).withAnnotations(Seq(WriteVcdAnnotation)) { dut =>
-      val one = "h3FF0000000000000".U
-      val two = "h4000000000000000".U
-      dut.io.in.bits  poke one
+    test(new CORDICSqrtTop(SqrtDatatype.FLOAT)).withAnnotations(Seq(WriteVcdAnnotation)) { dut =>
+      val one = "h3f800000".U
+      val two = "h40000000".U
+      // dut.io.datatype poke SqrtDatatype.DOUBLE
+      dut.io.in.bits poke one
       dut.io.in.valid poke true.B
       dut.clock.step(1)
       dut.io.in.valid poke false.B
-      dut.io.datatype poke SqrtDatatype.DOUBLE
       dut.clock.step(130)
       //dut.io.out.bits.data   expect "h3FF6A09E667F3BCD".U
     }
