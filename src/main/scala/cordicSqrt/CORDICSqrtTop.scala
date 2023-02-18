@@ -52,7 +52,7 @@ trait CORDICMethods {
         k = 3 * k + 1
       }
     }
-    print(1 / An)
+    println(1 / An)
     1 / An
   }
 
@@ -179,13 +179,13 @@ class CORDICSqrtTop(val datatype: SqrtDatatype = SqrtDatatype.DOUBLE)
         // TODO: what if start value is 1.99? 1.99+0.25 will overflow
         cordicIter.in.xn := (cordicIn + cordicInit) << (calculationBits - datatypeMux(
           datatype,
-          25,
-          54
+          26,
+          55
         ))
         cordicIter.in.yn := (cordicIn - cordicInit) << (calculationBits - datatypeMux(
           datatype,
-          25,
-          54
+          26,
+          55
         ))
       }.otherwise {
         cordicIter.in.xn := xn
