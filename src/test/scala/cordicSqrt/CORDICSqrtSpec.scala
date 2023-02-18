@@ -20,7 +20,7 @@ import chisel3.experimental.BundleLiterals._
 class CORDICSqrtSpec extends AnyFlatSpec with ChiselScalatestTester {
 
   it should "check special cases" in {
-    test(new CORDICSqrtTop).withAnnotations(Seq(WriteVcdAnnotation)) { dut =>
+    test(new SqrtWrapper(SqrtDatatype.DOUBLE)).withAnnotations(Seq(WriteVcdAnnotation)) { dut =>
       val minus_zero = "h8000000000000000".U
       dut.io.in.bits  poke minus_zero
       dut.io.in.valid poke true.B
@@ -68,7 +68,7 @@ class CORDICSqrtSpec extends AnyFlatSpec with ChiselScalatestTester {
   }
 
   it should "calculate random values" in {
-    test(new CORDICSqrtTop(SqrtDatatype.FLOAT)).withAnnotations(Seq(WriteVcdAnnotation)) { dut =>
+    test(new SqrtWrapper(SqrtDatatype.FLOAT)).withAnnotations(Seq(WriteVcdAnnotation)) { dut =>
       val one = "h3f800000".U
       val two = "h40000000".U
       // dut.io.datatype poke SqrtDatatype.DOUBLE

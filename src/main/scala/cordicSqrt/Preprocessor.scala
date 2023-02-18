@@ -22,7 +22,7 @@ class PreProcessor(val datatype: SqrtDatatype) extends Module {
     val out = Output(new Bundle {
       val mantissa = UInt((consts.mantissaLength+2).W)
       val exponent = UInt((consts.exponentLength).W)
-      val data     = ValidIO(CORDICSqrtOutput())
+      val data     = ValidIO(CORDICSqrtOutput(datatype))
     })
 
   })
@@ -81,9 +81,14 @@ class PreProcessor(val datatype: SqrtDatatype) extends Module {
     0.U(64.W)
   )
 
-  io.out.data.bits.data   := data_valid
-  io.out.data.bits.fflags := fflagsValid.asUInt
-  io.out.data.valid       := valid
+  io.out.data.bits.mantissa  := mantissaValid
+  io.out.data.bits.exponent  := exponentValid
+  io.out.data.bits.signBit   := signValid
+  io.out.data.bits.guardBit  := 0.U
+  io.out.data.bits.roundBit  := 0.U
+  io.out.data.bits.stickyBit := 0.U
+  io.out.data.bits.fflags    := fflagsValid.asUInt
+  io.out.data.valid          := valid
 
   val isZero = (mantissa === 0.U && exponent === 0.U)
   val isNan  = exponent.andR && mantissa.orR

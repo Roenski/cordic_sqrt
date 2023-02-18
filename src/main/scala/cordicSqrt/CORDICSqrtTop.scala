@@ -6,10 +6,6 @@ import chisel3.experimental._
 import scala.math.{pow, sqrt}
 import dataclass.data
 
-// object SqrtDatatype extends ChiselEnum {
-//   val FLOAT, DOUBLE = Value
-// }
-
 object SqrtDatatype extends Enumeration{
   type SqrtDatatype = Value
   val FLOAT = Value(0)
@@ -25,13 +21,18 @@ object FaultFlag extends ChiselEnum {
   val invalid   = Value(4.U)
 }
 
-case class CORDICSqrtOutput(datatype: SqrtDatatype = SqrtDatatype.DOUBLE)
+case class CORDICSqrtOutput(datatype: SqrtDatatype)
     extends Bundle with datatypeMux {
-  val data   = UInt(datatypeMux(datatype, 32, 64).W)
-  val fflags = UInt(5.W)
+  val mantissa  = UInt(datatypeMux(datatype, 24, 53).W)
+  val exponent  = UInt(datatypeMux(datatype, 8, 11).W)
+  val signBit   = UInt(1.W)
+  val guardBit  = UInt(1.W)
+  val roundBit  = UInt(1.W)
+  val stickyBit = UInt(1.W)
+  val fflags    = UInt(5.W)
 }
 
-case class FloatConsts(val datatype: SqrtDatatype = SqrtDatatype.DOUBLE)
+case class FloatConsts(val datatype: SqrtDatatype)
     extends datatypeMux {
   // Doesn't include hidden bit
   val dataLength     = datatypeMux(datatype, 32, 64)
@@ -75,7 +76,7 @@ trait CORDICMethods {
 object CORDICSqrtTop {
 
   object State extends ChiselEnum {
-    val WAIT, PREPROCESS, CALCULATE, FINISH = Value
+    val WAIT, PREPROCESS, CALCULATE, MULTIPLY, FINISH = Value
   }
 
 }
@@ -99,6 +100,8 @@ class CORDICSqrtTop(val datatype: SqrtDatatype = SqrtDatatype.DOUBLE)
     extends Module with CORDICMethods with datatypeMux {
   import CORDICSqrtTop.State
 
+  val consts = FloatConsts(datatype)
+
   val io = IO(new Bundle {
     val in       = Flipped(ValidIO(UInt(datatypeMux(datatype, 32, 64).W)))
     // val datatype = Input(SqrtDatatype())
@@ -110,19 +113,23 @@ class CORDICSqrtTop(val datatype: SqrtDatatype = SqrtDatatype.DOUBLE)
 
   // Submodules
   val preprocessor = Module(new PreProcessor(datatype))
-
   val cordicIter =
     Module(new CORDICSqrt(width = calculationBits, iterations = iterations))
 
   // Registers
   val in          = Reg(Output(chiselTypeOf(io.in)))
   val out         = Reg(Output(chiselTypeOf(io.out)))
-  val cordicIn    = datatypeMux(datatype, RegInit(0.U(25.W)), RegInit(0.U(54.W)))
+  val cordicIn    = RegInit(0.U((consts.mantissaLength + 2).W))
   val state       = RegInit(State.WAIT)
   val repeat      = RegInit(VecInit(generateRepeatIndices(iterations)))
   val repeatIndex = RegInit(0.U(4.W))
   val xn          = RegInit(0.S)
   val yn          = RegInit(0.S)
+  val tempResult  = RegInit(0.U)
+  val stickyBit   = RegInit(0.U(1.W))
+  val roundBit    = RegInit(0.U(1.W))
+  val guardBit    = RegInit(0.U(1.W))
+  val exponent    = RegInit(0.U(consts.exponentLength.W))
 
   // Wires
   val incrementCounter = WireDefault(false.B)
@@ -132,7 +139,7 @@ class CORDICSqrtTop(val datatype: SqrtDatatype = SqrtDatatype.DOUBLE)
 
   val invCordicGain = WireDefault(((calcInverseCORDICGain(iterations) * scala.math.pow(
     2,
-    calculationBits
+    calculationBits-2
   )).round).U)
 
   val cordicInit = WireDefault((cordicInitialValue / 2 * scala.math.pow(
@@ -145,7 +152,12 @@ class CORDICSqrtTop(val datatype: SqrtDatatype = SqrtDatatype.DOUBLE)
   cordicIter.in.iter := iterCounterValue
 
   // Initial values
-  out.bits.data               := 0.U
+  out.bits.mantissa           := 0.U
+  out.bits.signBit            := 0.U
+  out.bits.guardBit           := 0.U
+  out.bits.roundBit           := 0.U
+  out.bits.stickyBit          := 0.U
+  out.bits.exponent           := 0.U
   out.bits.fflags             := 0.U
   out.valid                   := false.B
   // preprocessor.io.in.datatype := 0.U
@@ -169,6 +181,7 @@ class CORDICSqrtTop(val datatype: SqrtDatatype = SqrtDatatype.DOUBLE)
         state := State.WAIT
       }.otherwise {
         cordicIn         := preprocessor.io.out.mantissa
+        exponent         := preprocessor.io.out.exponent
         state            := State.CALCULATE
       }
     }
@@ -197,7 +210,7 @@ class CORDICSqrtTop(val datatype: SqrtDatatype = SqrtDatatype.DOUBLE)
         yn := cordicIter.out.yn1
 
         when(iterCounterValue === iterations.U) {
-          state := State.FINISH
+          state := State.MULTIPLY
         }
       }
 
@@ -208,18 +221,25 @@ class CORDICSqrtTop(val datatype: SqrtDatatype = SqrtDatatype.DOUBLE)
       }
 
     }
+    is (State.MULTIPLY) {
+      val multiplyResult = (xn.asUInt.tail(1) * invCordicGain).tail(1)
+      tempResult := multiplyResult.head(consts.mantissaLength + 1)
+      roundBit   := tempResult(1)
+      guardBit   := tempResult(0)
+      stickyBit  := multiplyResult.tail(consts.mantissaLength + 3).orR
+      state      := State.FINISH
+    }
     is(State.FINISH) {
-      val tempResult = xn * invCordicGain
-      val resultMantissa =
-        tempResult(calculationBits, calculationBits - datatypeMux(datatype, 23, 52))
-      out.bits.data := tempResult(
-        calculationBits,
-        calculationBits - datatypeMux(datatype, 32, 64)
-      )
-      out.bits.fflags  := 0.U // Hmm
-      out.valid        := true.B
-      state            := State.WAIT
-      iterCounterValue := 1.U
+      out.bits.mantissa  := tempResult
+      out.bits.exponent  := exponent
+      out.bits.signBit   := 0.U
+      out.bits.guardBit  := guardBit
+      out.bits.roundBit  := roundBit
+      out.bits.stickyBit := stickyBit
+      out.bits.fflags    := 0.U // Hmm
+      out.valid          := true.B
+      state              := State.WAIT
+      iterCounterValue   := 0.U
     }
   }
 
