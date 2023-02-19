@@ -30,6 +30,7 @@ case class CORDICSqrtOutput(datatype: SqrtDatatype)
   val roundBit  = UInt(1.W)
   val stickyBit = UInt(1.W)
   val fflags    = UInt(5.W)
+  val special   = UInt(1.W)
 }
 
 case class FloatConsts(val datatype: SqrtDatatype)
@@ -159,6 +160,7 @@ class CORDICSqrtTop(val datatype: SqrtDatatype = SqrtDatatype.DOUBLE)
   out.bits.stickyBit          := 0.U
   out.bits.exponent           := 0.U
   out.bits.fflags             := 0.U
+  out.bits.special            := 0.U
   out.valid                   := false.B
   // preprocessor.io.in.datatype := 0.U
   preprocessor.io.in.data     := 0.U
@@ -176,7 +178,8 @@ class CORDICSqrtTop(val datatype: SqrtDatatype = SqrtDatatype.DOUBLE)
 
       preprocessor.io.in.data := in.bits
 
-      when(preprocessor.io.out.data.valid) {
+      when(preprocessor.io.out.data.bits.special.asBool) {
+        // Special case match
         out <> preprocessor.io.out.data
         state := State.WAIT
       }.otherwise {
@@ -224,8 +227,8 @@ class CORDICSqrtTop(val datatype: SqrtDatatype = SqrtDatatype.DOUBLE)
     is (State.MULTIPLY) {
       val multiplyResult = (xn.asUInt.tail(1) * invCordicGain).tail(1)
       tempResult := multiplyResult.head(consts.mantissaLength + 1)
-      roundBit   := tempResult(1)
-      guardBit   := tempResult(0)
+      guardBit   := multiplyResult.head(consts.mantissaLength + 3)(1)
+      roundBit   := multiplyResult.head(consts.mantissaLength + 3)(0)
       stickyBit  := multiplyResult.tail(consts.mantissaLength + 3).orR
       state      := State.FINISH
     }

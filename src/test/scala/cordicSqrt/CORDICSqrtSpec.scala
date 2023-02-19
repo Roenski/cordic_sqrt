@@ -19,7 +19,7 @@ import chisel3.experimental.BundleLiterals._
   */
 class CORDICSqrtSpec extends AnyFlatSpec with ChiselScalatestTester {
 
-  it should "check special cases" in {
+  it should "check special cases for double" in {
     test(new SqrtWrapper(SqrtDatatype.DOUBLE)).withAnnotations(Seq(WriteVcdAnnotation)) { dut =>
       val minus_zero = "h8000000000000000".U
       dut.io.in.bits  poke minus_zero
@@ -67,6 +67,54 @@ class CORDICSqrtSpec extends AnyFlatSpec with ChiselScalatestTester {
     }
   }
 
+  it should "check special cases for single" in {
+    test(new SqrtWrapper(SqrtDatatype.FLOAT)).withAnnotations(Seq(WriteVcdAnnotation)) { dut =>
+      val minus_zero = "h80000000".U
+      dut.io.in.bits  poke minus_zero
+      dut.io.in.valid poke true.B
+      // dut.io.datatype poke SqrtDatatype.DOUBLE
+      dut.clock.step()
+      dut.io.in.valid poke false.B
+      while(dut.io.out.valid.peek().litToBoolean == false) dut.clock.step()
+      dut.io.out.bits.data   expect minus_zero
+      dut.io.out.bits.fflags expect 0.U
+      dut.io.out.valid       expect true.B
+
+      val plus_inf = "h7f800000".U
+      dut.io.in.bits  poke plus_inf
+      dut.io.in.valid poke true.B
+      dut.clock.step()
+      dut.io.in.valid poke false.B
+      while(dut.io.out.valid.peek().litToBoolean == false) dut.clock.step()
+      dut.io.out.bits.data   expect plus_inf
+      dut.io.out.bits.fflags expect 0.U
+      dut.io.out.valid       expect true.B
+
+      val minus_inf  = "hff800000".U
+      val minus_qNan = "hffc00000".U
+      dut.io.in.bits  poke minus_inf
+      dut.io.in.valid poke true.B
+      dut.clock.step()
+      dut.io.in.valid poke false.B
+      while(dut.io.out.valid.peek().litToBoolean == false) dut.clock.step()
+
+      dut.io.out.bits.data   expect minus_qNan
+      dut.io.out.bits.fflags expect 16.U
+      dut.io.out.valid       expect true.B
+
+      val qNan_with_payload = "hffc0afaf".U
+      dut.io.in.bits  poke qNan_with_payload
+      dut.io.in.valid poke true.B
+      dut.clock.step()
+      dut.io.in.valid poke false.B
+      while(dut.io.out.valid.peek().litToBoolean == false) dut.clock.step()
+
+      dut.io.out.bits.data   expect qNan_with_payload
+      dut.io.out.bits.fflags expect 0.U
+      dut.io.out.valid       expect true.B
+    }
+  }
+
   it should "calculate random values" in {
     test(new SqrtWrapper(SqrtDatatype.FLOAT)).withAnnotations(Seq(WriteVcdAnnotation)) { dut =>
       val one = "h3f800000".U
@@ -76,7 +124,8 @@ class CORDICSqrtSpec extends AnyFlatSpec with ChiselScalatestTester {
       dut.io.in.valid poke true.B
       dut.clock.step(1)
       dut.io.in.valid poke false.B
-      dut.clock.step(130)
+      while(dut.io.out.valid.peek().litToBoolean == false) dut.clock.step()
+      dut.io.out.bits.data   expect one
       //dut.io.out.bits.data   expect "h3FF6A09E667F3BCD".U
     }
   }

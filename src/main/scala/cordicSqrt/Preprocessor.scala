@@ -68,18 +68,12 @@ class PreProcessor(val datatype: SqrtDatatype) extends Module {
   }
 
   // Special cases
-  // If one of them matches, valid is set true
-  val valid         = WireDefault(false.B)
+  // If one of them matches, special is set true
+  val special       = WireDefault(false.B)
   val signValid     = WireDefault(0.U(1.W))
   val mantissaValid = WireDefault(0.U(consts.mantissaLength.W))
   val exponentValid = WireDefault(0.U(consts.exponentLength.W))
   val fflagsValid   = VecInit.fill(5) { false.B }
-
-  val data_valid = Mux(
-    valid,
-    Cat(signValid, exponentValid, mantissaValid),
-    0.U(64.W)
-  )
 
   io.out.data.bits.mantissa  := mantissaValid
   io.out.data.bits.exponent  := exponentValid
@@ -88,7 +82,8 @@ class PreProcessor(val datatype: SqrtDatatype) extends Module {
   io.out.data.bits.roundBit  := 0.U
   io.out.data.bits.stickyBit := 0.U
   io.out.data.bits.fflags    := fflagsValid.asUInt
-  io.out.data.valid          := valid
+  io.out.data.valid          := true.B
+  io.out.data.bits.special   := special
 
   val isZero = (mantissa === 0.U && exponent === 0.U)
   val isNan  = exponent.andR && mantissa.orR
@@ -101,19 +96,19 @@ class PreProcessor(val datatype: SqrtDatatype) extends Module {
     signValid     := sign
     mantissaValid := mantissa
     exponentValid := exponent
-    valid         := true.B
+    special       := true.B
   }.elsewhen(isQnan) {
     // no flags
     signValid     := sign
     mantissaValid := mantissa
     exponentValid := exponent
-    valid         := true.B
+    special       := true.B
   }.elsewhen(isSnan) {
     // invalid flag
     signValid                             := sign
     mantissaValid                         := mantissa
     exponentValid                         := exponent
-    valid                                 := true.B
+    special                               := true.B
     fflagsValid(FaultFlag.invalid.asUInt) := true.B
   }.elsewhen(sign) {
     // output a qNan
@@ -121,14 +116,14 @@ class PreProcessor(val datatype: SqrtDatatype) extends Module {
     signValid                             := sign
     mantissaValid                         := Cat(1.U, mantissa(consts.mantissaLength - 2, 0))
     exponentValid                         := Fill(consts.exponentLength, 1.U)
-    valid                                 := true.B
+    special                               := true.B
     fflagsValid(FaultFlag.invalid.asUInt) := true.B
   }.elsewhen(isInf) {
     // no flags
     signValid     := sign
     mantissaValid := mantissa
     exponentValid := exponent
-    valid         := true.B
+    special       := true.B
   }
 
 }
