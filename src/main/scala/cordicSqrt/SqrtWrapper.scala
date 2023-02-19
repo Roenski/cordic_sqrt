@@ -9,7 +9,7 @@ import SqrtDatatype._
 class SqrtWrapper(val datatype: SqrtDatatype) extends Module with datatypeMux {
 
   val bitWidth = {
-    if (datatype == SqrtDatatype.FLOAT) 32
+    if (datatype == SqrtDatatype.SINGLE) 32
     else 64
   }
 

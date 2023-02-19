@@ -8,7 +8,7 @@ import dataclass.data
 
 object SqrtDatatype extends Enumeration{
   type SqrtDatatype = Value
-  val FLOAT = Value(0)
+  val SINGLE = Value(0)
   val DOUBLE = Value(1)
 }
 import SqrtDatatype._
@@ -85,7 +85,7 @@ object CORDICSqrtTop {
 trait datatypeMux {
 
   def datatypeMux[T](datatype: SqrtDatatype, floatReturn: T, doubleReturn: T) = {
-    if (datatype == SqrtDatatype.FLOAT) {
+    if (datatype == SqrtDatatype.SINGLE) {
       floatReturn
     } else {
       doubleReturn

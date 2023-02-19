@@ -68,7 +68,7 @@ class CORDICSqrtSpec extends AnyFlatSpec with ChiselScalatestTester {
   }
 
   it should "check special cases for single" in {
-    test(new SqrtWrapper(SqrtDatatype.FLOAT)).withAnnotations(Seq(WriteVcdAnnotation)) { dut =>
+    test(new SqrtWrapper(SqrtDatatype.SINGLE)).withAnnotations(Seq(WriteVcdAnnotation)) { dut =>
       val minus_zero = "h80000000".U
       dut.io.in.bits  poke minus_zero
       dut.io.in.valid poke true.B
@@ -115,8 +115,8 @@ class CORDICSqrtSpec extends AnyFlatSpec with ChiselScalatestTester {
     }
   }
 
-  it should "calculate random values" in {
-    test(new SqrtWrapper(SqrtDatatype.FLOAT)).withAnnotations(Seq(WriteVcdAnnotation)) { dut =>
+  it should "calculate random values for single" in {
+    test(new SqrtWrapper(SqrtDatatype.SINGLE)).withAnnotations(Seq(WriteVcdAnnotation)) { dut =>
       val one = "h3f800000".U
       val two = "h40000000".U
       // dut.io.datatype poke SqrtDatatype.DOUBLE
@@ -126,7 +126,6 @@ class CORDICSqrtSpec extends AnyFlatSpec with ChiselScalatestTester {
       dut.io.in.valid poke false.B
       while(dut.io.out.valid.peek().litToBoolean == false) dut.clock.step()
       dut.io.out.bits.data   expect one
-      //dut.io.out.bits.data   expect "h3FF6A09E667F3BCD".U
     }
   }
 }
