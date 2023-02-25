@@ -17,7 +17,9 @@ object floatValues {
   object DOUBLE {
     val one = "h3FF0000000000000".U
     val two = "h4000000000000000".U
+    val three = "h4008000000000000".U
     val four = "h4010000000000000".U
+    val nine = "h4022000000000000".U
   }
 }
 
@@ -34,13 +36,23 @@ object floatValues {
   */
 class CORDICSqrtSpec extends AnyFlatSpec with ChiselScalatestTester {
 
+  def generateTestVector(file: String) = {
+    val source = scala.io.Source.fromFile(file)
+    val data = source.getLines().map(_.split(" ")).toArray
+    source.close()
+    data
+  }
+
   def testValue(dut: SqrtWrapper, input: UInt, expectedOutput: UInt) : Unit = {
     dut.io.in.bits  poke input
     dut.io.in.valid poke true.B
     dut.clock.step()
     dut.io.in.valid poke false.B
     while(dut.io.out.valid.peek().litToBoolean == false) dut.clock.step()
-    dut.io.out.bits.data expect expectedOutput
+    val result = dut.io.out.bits.data.peek()
+    val flags = dut.io.out.bits.fflags.peek()
+    assert(result.litValue == expectedOutput.litValue, 
+      s"Got: 0x${result.litValue.toString(16)}, Expected: 0x${expectedOutput.litValue.toString(16)}")
   }
 
   it should "check special cases for double" in {
@@ -139,17 +151,30 @@ class CORDICSqrtSpec extends AnyFlatSpec with ChiselScalatestTester {
     }
   }
 
-  it should "calculate random values for single" in {
+  it should "calculate easy values for single" in {
     test(new SqrtWrapper(SqrtDatatype.SINGLE)).withAnnotations(Seq(WriteVcdAnnotation)) { dut =>
       testValue(dut, floatValues.SINGLE.one, floatValues.SINGLE.one)
       testValue(dut, floatValues.SINGLE.four, floatValues.SINGLE.two)
       testValue(dut, floatValues.SINGLE.nine, floatValues.SINGLE.three)
     }
   }
-  it should "calculate random values for double" in {
+  it should "calculate easy values for double" in {
     test(new SqrtWrapper(SqrtDatatype.DOUBLE)).withAnnotations(Seq(WriteVcdAnnotation)) { dut =>
       testValue(dut, floatValues.DOUBLE.one, floatValues.DOUBLE.one)
       testValue(dut, floatValues.DOUBLE.four, floatValues.DOUBLE.two)
+      testValue(dut, floatValues.DOUBLE.nine, floatValues.DOUBLE.three)
     }
   }
+
+  // it should "calculate test vector for single" in {
+  //   test(new SqrtWrapper(SqrtDatatype.SINGLE)).withAnnotations(Seq(WriteVcdAnnotation)) { dut =>
+  //     val testVecs = generateTestVector("src/test/scala/cordicSqrt/f32_sqrt_test_vectors.txt")
+  //     for (vec <- testVecs) {
+  //       val testInput = {"h" + vec(0)}.U
+  //       val testOutput = {"h" + vec(1)}.U
+  //       testValue(dut, testInput, testOutput)
+  //       println(s"SUCCESS: $testInput -> $testOutput")
+  //     }
+  //   }
+  // }
 }
