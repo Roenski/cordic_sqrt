@@ -44,6 +44,21 @@ case class FloatConsts(val datatype: SqrtDatatype)
 
 trait CORDICMethods {
 
+    /**
+    * Converts a Scala BigInt into Chisel UInt representation
+    * Does not modify bits
+    * For example, -1 BigInt would be turned into "hFFFFFFFF".U
+    *
+    * @param num BigInt input
+    * @param XLEN Width of the data 
+    * @return Chisel unsigned type
+    */
+  def BigIntToUInt(num: BigInt, XLEN: Int): UInt  = {
+    if (num == 0) 0.U(XLEN.W)
+    else if (num < 0) (num+pow(2,XLEN).toLong).U(XLEN.W)
+    else num.U(XLEN.W)
+  }
+
   def calcInverseCORDICGain(iterations: Int): Double = {
     var An = 1.0.toDouble
     var k  = 4
@@ -138,10 +153,10 @@ class CORDICSqrtTop(val datatype: SqrtDatatype = SqrtDatatype.DOUBLE)
   // Iterations counter
   val (iterCounterValue, iterCounterWrap) = Counter(incrementCounter, iterations + 1)
 
-  val invCordicGain = WireDefault(((calcInverseCORDICGain(iterations) * scala.math.pow(
+  val invCordicGain = WireDefault(BigIntToUInt(BigDecimal.valueOf(calcInverseCORDICGain(iterations) * scala.math.pow(
     2,
     calculationBits-2
-  )).round).U)
+  )).toBigInt, calculationBits))
 
   val cordicInit = WireDefault((cordicInitialValue / 2 * scala.math.pow(
     2,
