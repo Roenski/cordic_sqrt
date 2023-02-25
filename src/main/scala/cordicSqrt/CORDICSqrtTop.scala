@@ -124,8 +124,8 @@ class CORDICSqrtTop(val datatype: SqrtDatatype = SqrtDatatype.DOUBLE)
     val out      = ValidIO(CORDICSqrtOutput(datatype))
   })
 
-  val iterations      = datatypeMux(datatype, 50, 100)
-  val calculationBits = datatypeMux(datatype, 50, 100)
+  val iterations      = datatypeMux(datatype, 50, 101)
+  val calculationBits = datatypeMux(datatype, 50, 101)
 
   // Submodules
   val preprocessor = Module(new PreProcessor(datatype))
