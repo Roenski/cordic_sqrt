@@ -128,4 +128,17 @@ class CORDICSqrtSpec extends AnyFlatSpec with ChiselScalatestTester {
       dut.io.out.bits.data   expect one
     }
   }
+  // it should "calculate random values for double" in {
+  //   test(new SqrtWrapper(SqrtDatatype.DOUBLE)).withAnnotations(Seq(WriteVcdAnnotation)) { dut =>
+  //     val one = "h3FF0000000000000".U
+  //     val two = "h4000000000000000".U
+  //     // dut.io.datatype poke SqrtDatatype.DOUBLE
+  //     dut.io.in.bits poke one
+  //     dut.io.in.valid poke true.B
+  //     dut.clock.step(1)
+  //     dut.io.in.valid poke false.B
+  //     while(dut.io.out.valid.peek().litToBoolean == false) dut.clock.step()
+  //     dut.io.out.bits.data   expect one
+  //   }
+  // }
 }
