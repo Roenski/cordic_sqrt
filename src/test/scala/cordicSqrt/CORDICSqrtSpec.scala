@@ -6,6 +6,14 @@ import chiseltest._
 import org.scalatest.flatspec.AnyFlatSpec
 import chisel3.experimental.BundleLiterals._
 
+object floatValues {
+  object SINGLE {
+    val one = "h3f800000".U
+    val two = "h40000000".U
+    val four = "h40800000".U
+  }
+}
+
 /**
   * This is a trivial example of how to run this Specification
   * From within sbt use:
@@ -18,6 +26,15 @@ import chisel3.experimental.BundleLiterals._
   * }}}
   */
 class CORDICSqrtSpec extends AnyFlatSpec with ChiselScalatestTester {
+
+  def testValue(dut: SqrtWrapper, input: UInt, expectedOutput: UInt) : Unit = {
+    dut.io.in.bits  poke input
+    dut.io.in.valid poke true.B
+    dut.clock.step()
+    dut.io.in.valid poke false.B
+    while(dut.io.out.valid.peek().litToBoolean == false) dut.clock.step()
+    dut.io.out.bits.data expect expectedOutput
+  }
 
   it should "check special cases for double" in {
     test(new SqrtWrapper(SqrtDatatype.DOUBLE)).withAnnotations(Seq(WriteVcdAnnotation)) { dut =>
@@ -117,21 +134,14 @@ class CORDICSqrtSpec extends AnyFlatSpec with ChiselScalatestTester {
 
   it should "calculate random values for single" in {
     test(new SqrtWrapper(SqrtDatatype.SINGLE)).withAnnotations(Seq(WriteVcdAnnotation)) { dut =>
-      val one = "h3f800000".U
-      val two = "h40000000".U
-      // dut.io.datatype poke SqrtDatatype.DOUBLE
-      dut.io.in.bits poke one
-      dut.io.in.valid poke true.B
-      dut.clock.step(1)
-      dut.io.in.valid poke false.B
-      while(dut.io.out.valid.peek().litToBoolean == false) dut.clock.step()
-      dut.io.out.bits.data   expect one
+      testValue(dut, floatValues.SINGLE.one, floatValues.SINGLE.one)
     }
   }
   it should "calculate random values for double" in {
     test(new SqrtWrapper(SqrtDatatype.DOUBLE)).withAnnotations(Seq(WriteVcdAnnotation)) { dut =>
-      val one = "h3FF0000000000000".U
-      val two = "h4000000000000000".U
+      val one  = "h3FF0000000000000".U
+      val two  = "h4000000000000000".U
+      val four = "h4010000000000000".U
       // dut.io.datatype poke SqrtDatatype.DOUBLE
       dut.io.in.bits poke one
       dut.io.in.valid poke true.B
@@ -139,6 +149,13 @@ class CORDICSqrtSpec extends AnyFlatSpec with ChiselScalatestTester {
       dut.io.in.valid poke false.B
       while(dut.io.out.valid.peek().litToBoolean == false) dut.clock.step()
       dut.io.out.bits.data   expect one
+
+      dut.io.in.bits poke four
+      dut.io.in.valid poke true.B
+      dut.clock.step(1)
+      dut.io.in.valid poke false.B
+      while(dut.io.out.valid.peek().litToBoolean == false) dut.clock.step()
+      dut.io.out.bits.data   expect two
     }
   }
 }
