@@ -61,6 +61,8 @@ class RoundingBlock(val datatype: SqrtDatatype) extends Module {
 
     when (overflow && !usedGuardBit) {
       finalExponent := io.in.bits.exponent + 1.U
+    } .elsewhen (!overflow && usedGuardBit) {
+      finalExponent := io.in.bits.exponent - 1.U
     } .otherwise {
       finalExponent := io.in.bits.exponent
     }

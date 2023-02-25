@@ -241,7 +241,7 @@ class CORDICSqrtTop(val datatype: SqrtDatatype = SqrtDatatype.DOUBLE)
 
     }
     is (State.MULTIPLY) {
-      val multiplyResult = (xn.asUInt.tail(1) * invCordicGain).tail(1)
+      val multiplyResult = (xn.asUInt.tail(1) * invCordicGain).tail(2)
       tempResult := multiplyResult.head(consts.mantissaLength + 1)
       guardBit   := multiplyResult.head(consts.mantissaLength + 3)(1)
       roundBit   := multiplyResult.head(consts.mantissaLength + 3)(0)
