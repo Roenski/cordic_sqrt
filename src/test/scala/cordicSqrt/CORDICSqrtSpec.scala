@@ -11,6 +11,13 @@ object floatValues {
     val one = "h3f800000".U
     val two = "h40000000".U
     val four = "h40800000".U
+    val three = "h40400000".U
+    val nine = "h41100000".U
+  }
+  object DOUBLE {
+    val one = "h3FF0000000000000".U
+    val two = "h4000000000000000".U
+    val four = "h4010000000000000".U
   }
 }
 
@@ -136,27 +143,13 @@ class CORDICSqrtSpec extends AnyFlatSpec with ChiselScalatestTester {
     test(new SqrtWrapper(SqrtDatatype.SINGLE)).withAnnotations(Seq(WriteVcdAnnotation)) { dut =>
       testValue(dut, floatValues.SINGLE.one, floatValues.SINGLE.one)
       testValue(dut, floatValues.SINGLE.four, floatValues.SINGLE.two)
+      testValue(dut, floatValues.SINGLE.nine, floatValues.SINGLE.three)
     }
   }
   it should "calculate random values for double" in {
     test(new SqrtWrapper(SqrtDatatype.DOUBLE)).withAnnotations(Seq(WriteVcdAnnotation)) { dut =>
-      val one  = "h3FF0000000000000".U
-      val two  = "h4000000000000000".U
-      val four = "h4010000000000000".U
-      // dut.io.datatype poke SqrtDatatype.DOUBLE
-      dut.io.in.bits poke one
-      dut.io.in.valid poke true.B
-      dut.clock.step(1)
-      dut.io.in.valid poke false.B
-      while(dut.io.out.valid.peek().litToBoolean == false) dut.clock.step()
-      dut.io.out.bits.data   expect one
-
-      dut.io.in.bits poke four
-      dut.io.in.valid poke true.B
-      dut.clock.step(1)
-      dut.io.in.valid poke false.B
-      while(dut.io.out.valid.peek().litToBoolean == false) dut.clock.step()
-      dut.io.out.bits.data   expect two
+      testValue(dut, floatValues.DOUBLE.one, floatValues.DOUBLE.one)
+      testValue(dut, floatValues.DOUBLE.four, floatValues.DOUBLE.two)
     }
   }
 }
