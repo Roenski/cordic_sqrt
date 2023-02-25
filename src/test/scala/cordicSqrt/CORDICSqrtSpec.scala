@@ -135,6 +135,7 @@ class CORDICSqrtSpec extends AnyFlatSpec with ChiselScalatestTester {
   it should "calculate random values for single" in {
     test(new SqrtWrapper(SqrtDatatype.SINGLE)).withAnnotations(Seq(WriteVcdAnnotation)) { dut =>
       testValue(dut, floatValues.SINGLE.one, floatValues.SINGLE.one)
+      testValue(dut, floatValues.SINGLE.four, floatValues.SINGLE.two)
     }
   }
   it should "calculate random values for double" in {

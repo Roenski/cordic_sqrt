@@ -47,6 +47,10 @@ class PreProcessor(val datatype: SqrtDatatype) extends Module {
   io.out.mantissa := newMantissa
   io.out.exponent := newExponent
 
+  val exponentShifted = Cat(0.U, exponent >> 1)
+  val constShifted = Cat(0.U, consts.bias.U >> 1)
+  val exponentConstSum = exponentShifted + constShifted + 1.U
+
   // Calculate new exponent
   // and adjust mantissa when necessary
   when(exponent === consts.bias.U) {
@@ -55,7 +59,7 @@ class PreProcessor(val datatype: SqrtDatatype) extends Module {
   }.elsewhen(exponent(0)) {
     // Exponent is odd (or even, after subtracting bias)
     // Exponent divided by 2, remainder 0
-    newExponent := (exponent >> 1) + (consts.bias.U >> 1) + 1.U
+    newExponent := exponentConstSum
     newMantissa := Cat(hiddenBit, mantissa, 0.U)
   }.otherwise {
     // Exponent is even (or odd, after subtracting bias)
@@ -63,7 +67,7 @@ class PreProcessor(val datatype: SqrtDatatype) extends Module {
     // and divide by 2 by shifting right, and then just add 1
     // Exponent divided by 2, remainder 1
     // Mantissa is divided by 2, exponent rounded upwards
-    newExponent := ((exponent + 1.U) >> 1) + (consts.bias.U >> 1) + 1.U
+    newExponent := exponentConstSum
     newMantissa := Cat(0.U, hiddenBit, mantissa)
   }
 

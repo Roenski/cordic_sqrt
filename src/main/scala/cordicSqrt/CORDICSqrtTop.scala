@@ -164,6 +164,7 @@ class CORDICSqrtTop(val datatype: SqrtDatatype = SqrtDatatype.DOUBLE)
   )).round.U)
 
   // Assignments
+  in     <> io.in
   io.out <> out
   cordicIter.in.iter := iterCounterValue
 
@@ -185,8 +186,8 @@ class CORDICSqrtTop(val datatype: SqrtDatatype = SqrtDatatype.DOUBLE)
   switch(state) {
     is(State.WAIT) {
       when(io.in.valid) {
-        in <> io.in
         state := State.PREPROCESS
+        repeatIndex := 0.U
       }
     }
     is(State.PREPROCESS) {
