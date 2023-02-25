@@ -6,6 +6,11 @@ import chisel3.experimental._
 
 import SqrtDatatype._
 
+case class SqrtWrapperIO(datatype: SqrtDatatype, bitWidth: Int) extends Bundle {
+  val in = Flipped(ValidIO(UInt(bitWidth.W)))
+  val out = Output(ValidIO(RoundingBlockOutput(datatype)))
+}
+
 class SqrtWrapper(val datatype: SqrtDatatype) extends Module with datatypeMux {
 
   val bitWidth = {
@@ -13,10 +18,7 @@ class SqrtWrapper(val datatype: SqrtDatatype) extends Module with datatypeMux {
     else 64
   }
 
-  val io = IO(new Bundle {
-    val in = Flipped(ValidIO(UInt(bitWidth.W)))
-    val out = Output(ValidIO(RoundingBlockOutput(datatype)))
-  })
+  val io = IO(SqrtWrapperIO(datatype, bitWidth))
 
   // Submodules
   val sqrtTop       = Module(new CORDICSqrtTop(datatype))
